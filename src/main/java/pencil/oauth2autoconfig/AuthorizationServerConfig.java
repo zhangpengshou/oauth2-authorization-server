@@ -16,6 +16,7 @@ import org.springframework.security.oauth2.config.annotation.web.configuration.A
 import org.springframework.security.oauth2.config.annotation.web.configuration.EnableAuthorizationServer;
 import org.springframework.security.oauth2.config.annotation.web.configurers.AuthorizationServerEndpointsConfigurer;
 import org.springframework.security.oauth2.config.annotation.web.configurers.AuthorizationServerSecurityConfigurer;
+import org.springframework.security.oauth2.provider.token.TokenEnhancer;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 
 import java.util.Objects;
@@ -44,11 +45,13 @@ public class AuthorizationServerConfig extends AuthorizationServerConfigurerAdap
 
     //定义授权和令牌端点和令牌服务
     @Override
-    public void configure(AuthorizationServerEndpointsConfigurer endpointsConfigurer){
+    public void configure(AuthorizationServerEndpointsConfigurer endpoints){
         //刷新令牌时需要的认证管理和用户信息来源
-        endpointsConfigurer.authenticationManager(authenticationManager()).allowedTokenEndpointRequestMethods(HttpMethod.GET,HttpMethod.POST);
-        endpointsConfigurer.authenticationManager(authenticationManager());
-        endpointsConfigurer.userDetailsService(userDetailsService());
+        endpoints.authenticationManager(authenticationManager()).allowedTokenEndpointRequestMethods(HttpMethod.GET,HttpMethod.POST);
+        endpoints.authenticationManager(authenticationManager());
+        endpoints.userDetailsService(userDetailsService());
+        endpoints.tokenEnhancer(tokenEnhancer()); //自定义token生成
+        endpoints.authorizationCodeServices(austhorizationCodeServices()); //自定义code生成
     }
 
     @Override
@@ -59,6 +62,22 @@ public class AuthorizationServerConfig extends AuthorizationServerConfigurerAdap
 
         //允许 check_token 访问
         oauthServer.checkTokenAccess("permitAll()");
+    }
+
+
+    /**
+     * @Description 自定义生成令牌token
+     * @Date 2019/7/9 19:58
+     * @Version  1.0
+     */
+    @Bean
+    public TokenEnhancer tokenEnhancer(){
+        return new UserTokenEnhancer();
+    }
+
+    @Bean
+    public OssAusthorizationCodeServices austhorizationCodeServices(){
+        return new OssAusthorizationCodeServices();
     }
 
     @Bean
@@ -80,10 +99,8 @@ public class AuthorizationServerConfig extends AuthorizationServerConfigurerAdap
     @Bean
     UserDetailsService userDetailsService() {
         InMemoryUserDetailsManager userDetailsService = new InMemoryUserDetailsManager();
-        userDetailsService.createUser(User.withUsername("user").password(passwordEncoder().encode("123456"))
-                .authorities("ROLE_USER").build());
-        userDetailsService.createUser(User.withUsername("admin").password(passwordEncoder().encode("123456"))
-                .authorities("ROLE_USER").build());
+        userDetailsService.createUser(User.withUsername("user").password(passwordEncoder().encode("123456")).authorities("ROLE_USER").build());
+        userDetailsService.createUser(User.withUsername("admin").password(passwordEncoder().encode("123456")).authorities("ROLE_USER").build());
         return userDetailsService;
     }
 
